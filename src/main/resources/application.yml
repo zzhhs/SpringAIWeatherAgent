@@ -1,0 +1,52 @@
+spring:
+  config:
+    import: optional:file:./application-local.yml
+  application:
+    name: spring-ai-weather-agent
+  ai:
+    model:
+      chat: deepseek
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY:replace-me}
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      chat:
+        options:
+          model: ${DEEPSEEK_MODEL:deepseek-chat}
+          temperature: 0.2
+
+server:
+  port: ${SERVER_PORT:8080}
+
+qweather:
+  api-host: ${QWEATHER_API_HOST:https://replace-me.qweatherapi.com}
+  api-key: ${QWEATHER_API_KEY:replace-me}
+  connect-timeout: 2s
+  read-timeout: 3s
+
+resilience4j:
+  retry:
+    instances:
+      qweather:
+        max-attempts: 2
+        wait-duration: 300ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - com.example.weatheragent.qweather.QWeatherTransientException
+  circuitbreaker:
+    instances:
+      qweather:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        record-exceptions:
+          - com.example.weatheragent.qweather.QWeatherTransientException
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
